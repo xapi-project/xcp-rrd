@@ -26,5 +26,6 @@ depends: [
   "base-unix"
   "rpc" {>= "1.9.51"}
   "uuidm"
+  "xmlm"
   "ounit" {test}
 ]
