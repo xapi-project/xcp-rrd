@@ -234,7 +234,7 @@ let rra_update rrd proc_pdp_st elapsed_pdp_st pdps =
 
 (* We assume that the data being given is of the form of a rate; that is,
    it's dependent on the time interval between updates. To be able to
-   deal with guage DSs, we multiply by the interval so that it cancels
+   deal with gauge DSs, we multiply by the interval so that it cancels
    the subsequent divide by interval later on *)
 let process_ds_value ds value interval new_domid =
   if interval > ds.ds_mrhb
@@ -302,7 +302,6 @@ let ds_update rrd timestamp values transforms new_domid =
 
   (* Calculate the values we're going to store based on the input data and the type of the DS *)
   let v2s = Array.mapi (fun i value -> process_ds_value rrd.rrd_dss.(i) value interval new_domid) values in
-  (*  debug "Got values: %s\n" (String.concat "," (Array.to_list (Array.mapi (fun i p -> Printf.sprintf "(%s: %f)" rrd.rrd_dss.(i).ds_name p) v2s)));*)
   (* Update the PDP accumulators up until the most recent PDP *)
   Array.iteri
     (fun i value ->
