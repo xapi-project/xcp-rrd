@@ -498,7 +498,7 @@ let from_xml input =
           let min = get_el "min" i in
           let max = get_el "max" i in
           ignore(get_el "last_ds" i);
-          let value = get_el "value" i in
+          ignore(get_el "value" i);
           let unknown_sec = get_el "unknown_sec" i in
           {
             ds_name = name;
@@ -511,7 +511,7 @@ let from_xml input =
             ds_min = float_of_string min;
             ds_max = float_of_string max;
             ds_last = VT_Unknown; (* float_of_string "last_ds"; *)
-            ds_value = float_of_string value;
+            ds_value = 0.0;
             ds_unknown_sec = float_of_string unknown_sec
           }) i
     in
