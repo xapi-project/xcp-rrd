@@ -69,15 +69,24 @@ let in_range min max values =
 let fring_to_list fring =
   Array.to_list @@ Fring.get fring
 
-(* Checks if all the values in the archives are within the limits set by the data sources
+(* Checks if all the values in the archives are within the limits min and max
  * Each archive (RRA) has a ring for each datasource (DS) *)
-let test_ranges rrd () =
+let rrd_values_in_range ?min ?max rrd =
   let in_range_fring ds fring =
-    in_range ds.ds_min ds.ds_max (fring_to_list fring) in
+    let min = match min with
+      | Some min -> min
+      | None -> ds.ds_min in
+    let max = match max with
+      | Some max -> max
+      | None -> ds.ds_max in
+    in_range min max (fring_to_list fring) in
   let in_range_rra dss rra =
     List.iter2 in_range_fring dss (Array.to_list rra.rra_data) in
 
   List.iter (in_range_rra @@ Array.to_list rrd.rrd_dss) (Array.to_list rrd.rrd_rras)
+
+let test_ranges rrd () =
+  rrd_values_in_range rrd
 
 let temp_rrd ~json () =
   let extension = match json with
@@ -144,11 +153,7 @@ let test_ca_322008 () =
   (* Check against the maximum reasonable value of this series,
    * the time in seconds when it was last updated, setting max
    * value may cause the bug to not trigger *)
-  let in_range_fring ds fring =
-    in_range ds.ds_min rrd.last_updated (fring_to_list fring) in
-  let in_range_rra dss rra =
-    List.iter2 in_range_fring dss (Array.to_list rra.rra_data) in
-  List.iter (in_range_rra @@ Array.to_list rrd.rrd_dss) @@ Array.to_list rrd.rrd_rras
+  rrd_values_in_range rrd ~max:rrd.last_updated
 
 let gauge_rrd = create_gauge_rrd ()
 
