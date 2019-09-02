@@ -11,6 +11,9 @@
 
 (alias
   (name runtest)
-  (deps (:x unit_tests.exe))
+  (deps
+    (:x unit_tests.exe)
+    (source_tree test_data)
+  )
   (action (run %{x}))
 )
