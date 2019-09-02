@@ -519,7 +519,14 @@ let from_xml input =
     dss
   in
 
-  let read_rras i =
+  let read_rras dss i =
+    let sanitize ?(default=Float.nan) ds value =
+      match float_of_string_opt value with
+      | None -> default
+      | Some value when Utils.isnan value || value < ds.ds_min || value > ds.ds_max ->
+        default
+      | Some value -> value
+    in
     let read_rra i =
       let read_cdp_prep i =
         let read_ds i =
@@ -547,7 +554,8 @@ let from_xml input =
         let db = Array.init cols (fun _ -> Fring.make rows nan) in
         for i=0 to cols-1 do
           for j=0 to rows-1 do
-            Fring.push db.(i) (float_of_string data.(j).(i))
+            (* CA-325844 Do not allow out-of-range values in RRAs *)
+            Fring.push db.(i) (sanitize dss.(i) data.(j).(i))
           done
         done;
         db
@@ -581,12 +589,12 @@ let from_xml input =
   accept (`Dtd None) input;
   read_block "rrd" (fun i ->
       let (step,last_update) = read_header i in (* ok *)
-      let dss = read_dss i in (* ok *)
-      let rras = read_rras i in
+      let dss = Array.of_list (read_dss i) in (* ok *)
+      let rras = read_rras dss i in
       let rrd = {
         last_updated = float_of_string last_update;
         timestep = Int64.of_string step;
-        rrd_dss = Array.of_list dss;
+        rrd_dss = dss;
         rrd_rras = Array.of_list rras
       } in
 
