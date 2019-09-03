@@ -84,6 +84,14 @@ module Xmlm_utils = struct
     then read_all t read_f i ((read_f i) :: acc)
     else List.rev acc
 
+  let read_all_with_index t read_f i acc =
+    let rec read_all_with_counter c acc =
+      if (Xmlm.peek i) = (start_tag t)
+      then read_all_with_counter (c + 1) ((read_f c i) :: acc)
+      else List.rev acc
+    in
+    read_all_with_counter 0 acc
+
   let read_block t f i =
     accept (start_tag t) i;
     let res = f i in

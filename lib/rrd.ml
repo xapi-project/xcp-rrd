@@ -529,18 +529,20 @@ let from_xml input =
     in
     let read_rra i =
       let read_cdp_prep i =
-        let read_ds i =
+        let read_ds index i =
           read_block "ds" (fun i ->
               ignore(get_el "primary_value" i);
               ignore(get_el "secondary_value" i);
               let value = get_el "value" i in
               let unknown_datapoints = get_el "unknown_datapoints" i in
               {
-                cdp_value=float_of_string value;
+                (* CA-325844 Do not allow out of range values in RRAs
+                 * we want to reset it to 0 as it's an accumulator *)
+                cdp_value=sanitize dss.(index) ~default:0. value;
                 cdp_unknown_pdps=int_of_string unknown_datapoints
               }) i
         in
-        let cdps = read_block "cdp_prep" (fun i -> read_all "ds" read_ds i []) i in
+        let cdps = read_block "cdp_prep" (fun i -> read_all_with_index "ds" read_ds i []) i in
         cdps
       in
       let read_database i =
