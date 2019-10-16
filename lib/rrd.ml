@@ -229,9 +229,8 @@ let rra_update rrd proc_pdp_st elapsed_pdp_st pdps =
         let new_start_pdp_offset = (elapsed_pdp_st - start_pdp_offset) mod rra.rra_pdp_cnt in
         Array.iteri (fun i cdp ->
           let ds = rrd.rrd_dss.(i) in
-          let cdp_init = cf_init_value rra.rra_cf ds in
           cdp.cdp_unknown_pdps <- 0;
-          cdp.cdp_value <- cdp_init
+          cdp.cdp_value <- cf_init_value rra.rra_cf ds
         ) rra.rra_cdps;
         do_cfs rra new_start_pdp_offset pdps;
         match rra.rra_updatehook with None -> () | Some f -> f rrd rra_step_cnt
