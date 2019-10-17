@@ -20,6 +20,29 @@
 
 exception Parse_error
 
+module BoundedFloat : sig
+  type t = private float
+  type entry_fun = Clamp | To_Nan
+  val of_float: minimum:float -> maximum:float -> f:entry_fun -> float -> t
+  val to_float: t -> float
+end = struct
+  type t = float
+  type entry_fun = Clamp | To_Nan
+
+  let of_float ~minimum ~maximum ~f x = match f with
+  | Clamp -> min maximum (max minimum x)
+  | To_Nan when x < minimum || x > maximum -> nan
+  | To_Nan -> x
+
+  let to_float x = x
+end
+
+(* cast double-precision float to single-precision *)
+let castd2s f =
+  let _data = Bigarray.Array1.create Bigarray.float32 Bigarray.c_layout 1 in
+  Bigarray.Array1.set _data 0 f;
+  Bigarray.Array1.get _data 0
+
 let isnan x = match classify_float x with | FP_nan -> true | _ -> false
 
 let array_index e a =
@@ -28,7 +51,7 @@ let array_index e a =
     if len <= i then -1
     else if Array.get a i = e then i
     else check (i + 1)
-  in check 0   
+  in check 0
 
 let array_remove n a =
   Array.append (Array.sub a 0 n) (Array.sub a (n+1) (Array.length a - n - 1))
@@ -37,7 +60,7 @@ let filter_map f list =
   let rec inner acc l =
     match l with
     | [] -> List.rev acc
-    | x::xs -> 
+    | x::xs ->
       let acc = match f x with | Some res -> res::acc | None -> acc in
       inner acc xs
   in
@@ -51,8 +74,8 @@ let rec setify = function
     are different from ocaml's native representation. Caml is fortunately more
     forgiving when doing a float_of_string, and can cope with these forms, so
     we make a generic float_to_string function here *)
-let f_to_s f = 
-  match classify_float f with 
+let f_to_s f =
+  match classify_float f with
   | FP_normal | FP_subnormal -> Printf.sprintf "%0.4f" f
   | FP_nan -> "NaN"
   | FP_infinite -> if f>0.0 then "Infinity" else "-Infinity"
@@ -80,7 +103,7 @@ module Xmlm_utils = struct
     else raise Parse_error
 
   let rec read_all t read_f i acc =
-    if (Xmlm.peek i) = (start_tag t) 
+    if (Xmlm.peek i) = (start_tag t)
     then read_all t read_f i ((read_f i) :: acc)
     else List.rev acc
 

@@ -11,21 +11,29 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
  *)
-(** Ring structures *)
- 
+(** Ring structures for RRAs
+    The values in the structures are bound to a range *)
+
+module BoundedFloat = Rrd_utils.BoundedFloat
+
 type t = {
   size : int;
   mutable current : int;
+  min : float;
+  max : float;
   data : (float, Bigarray.float32_elt, Bigarray.c_layout) Bigarray.Array1.t;
 }
 
-(** create a ring structure with [size] record; records initialised to [init] *)
-val make : int -> float -> t
+(** create a ring structure with [size] record; records initialised to [init]
+    @param size number of elements the ring holds (constant)
+    @param init value all the elements are initialized to
+    *)
+val make : int -> float -> float -> float -> t
 
 (** create a duplicate ring structure *)
 val copy : t -> t
 
-(** length of the ring *)
+(** length (size) of the ring, it is constant *)
 val length : t -> int
 
 (** push into the ring one element *)
@@ -48,4 +56,5 @@ val iter : t -> (float -> unit) -> unit
 (** get array of latest [nb] value *)
 val get_nb : t -> int -> float array
 
+(** get an array with all the values in the ring *)
 val get : t -> float array
