@@ -130,6 +130,75 @@ let create_dummy_data () =
    done;
    rrd
 
+let create_rrd ?(rows=2) values min max =
+    let init_time = 0. in
+
+    let rra1 = rra_create CF_Average rows 10 0.5 in
+    let rra2 = rra_create CF_Min     rows 10 0.5 in
+    let rra3 = rra_create CF_Max     rows 10 0.5 in
+    let rra4 = rra_create CF_Last    rows 10 0.5 in
+    let ds1 = ds_create "derive" ~min ~max Derive VT_Unknown in
+    let ds2 = ds_create "absolute" ~min ~max Derive VT_Unknown in
+    let ds3 = ds_create "gauge" ~min ~max Derive VT_Unknown in
+
+    let rrd = rrd_create [|ds1; ds2; ds3|] [|rra1; rra2; rra3; rra4|] 5L init_time in
+
+    let id = fun x -> x in
+
+    List.iteri (fun i v ->
+      let t = 5. *. (init_time +. float_of_int i) in
+      ds_update rrd t [|VT_Int64 v|] [|id; id; id; id|] (i = 0)
+    ) values;
+    rrd
+
+let suite_create_multi =
+  let module RU = Rrd_updates in
+
+  let assert_size t =
+    (** we can't to check that the number of rows is consistent,
+        since this is defined purely by the number of rows
+      * the number of columns should match the number of items in the legend -
+        each element in the legend array defines the contents for one column *)
+    let num_cols_in_legend = Array.length t.RU.legend in
+    t.RU.data |> Array.iteri (fun i r ->
+      assert_equal
+        ~msg:"number of cols in legend must match number of cols in row"
+        ~printer:string_of_int
+        num_cols_in_legend
+        (Array.length r.RU.row_data)
+    )
+  in
+  let test_no_rrds () =
+    assert_raises
+      ~msg:"should raise error"
+      (Failure "hd")
+      (fun () -> RU.create_multi [] 0L 1L None)
+  in
+  (** confusingly, rows in an rra are used to define the cols in the rrd_updates/ xml...
+    * essentially we usually expect 'rows' in each rrd to be the same (test_rows_with_same_num_cols)
+    * however, we should also handle the case where they are not (test_rows_with_different_num_cols) *)
+  let valid_rrd_tests =
+    [ "one_rrd",                      [ create_rrd ~rows:2 [0L; 5L; 10L] 0. 1.
+                                      ]
+    ; "rows_with_same_num_cols",      [ create_rrd ~rows:3 [0L; 5L; 10L] 0. 1.
+                                      ; create_rrd ~rows:3 [1L; 6L; 11L] 0. 1.
+                                      ]
+    ; "rows_with_different_num_cols", [ create_rrd ~rows:3 [0L; 5L; 10L] 0. 1.
+                                      ; create_rrd ~rows:2 [1L; 6L; 11L] 0. 1.
+                                      ]
+    ] |>
+    List.map (fun (name, rrds) ->
+      ( name >::
+        fun () ->
+          let rrds =
+            List.mapi (fun i rrd -> (Printf.sprintf "row[%i]" i, rrd)) rrds in
+          RU.create_multi rrds 0L 1L None |> assert_size
+      ))
+  in
+  ("no rrds" >:: test_no_rrds)::valid_rrd_tests
+
+
+
 let _ =
   let verbose = ref false in
   Arg.parse [
@@ -140,6 +209,13 @@ let _ =
   let rrd = create_dummy_data () in
 
   let suite = "rrd" >::: [
-    "read_write" >::: [test_marshal rrd; test_unmarshal rrd; test_ca_322008]
+    "read_write" >:::
+      List.concat
+      [ [ test_marshal rrd
+        ; test_unmarshal rrd
+        ; test_ca_322008
+        ]
+      ; suite_create_multi
+      ]
     ] in
   run_test_tt ~verbose:!verbose suite
