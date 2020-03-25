@@ -14,6 +14,14 @@ let compareish2 f1 f2 =
                (abs_float (f1 -. f2)) < 0.0001 in
   result
 
+let in_range min max values =
+  let between value =
+    if not (Utils.isnan value) then (
+      assert (min <= value);
+      assert (max >= value)
+    ) in
+  List.iter between values
+
 let assert_ds_equal d1 d2 =
   assert (d1.ds_name = d2.ds_name);
   assert (d1.ds_ty = d2.ds_ty );
@@ -55,6 +63,9 @@ let assert_rrds_equal r1 r2 =
   assert_dss_equal r1.rrd_dss r2.rrd_dss;
   assert_rras_equal r1.rrd_rras r2.rrd_rras
 
+let fring_to_list fring =
+  Array.to_list @@ Fring.get fring
+
 let test_marshal rrd =
   "Save to disk" >:: (fun () ->
         Rrd_unix.to_file rrd "/tmp/output.xml")
@@ -64,6 +75,39 @@ let test_unmarshal rrd =
       Rrd_unix.to_file rrd "/tmp/output.xml";
       let rrd' = Rrd_unix.of_file "/tmp/output.xml" in
       assert_rrds_equal rrd rrd')
+
+let ca_322008_rrd =
+  let init_time = 0. in
+
+  let rra1 = rra_create CF_Average 100 1 0.5 in
+  let rra2 = rra_create CF_Min     100 1 0.5 in
+  let rra3 = rra_create CF_Max     100 1 0.5 in
+  let ds = ds_create "even or zero" Derive ~min:0. (VT_Int64 0L) in
+
+  let rrd = rrd_create [|ds|] [|rra1; rra2; rra3|] 5L init_time in
+
+  let id = fun x -> x in
+  for i=1 to 100000 do
+    let t = init_time +. float_of_int i in
+    let t64 = Int64.of_float t in
+    let v = VT_Int64 (Int64.mul t64 (Int64.rem t64 2L)) in
+    ds_update rrd t [|v|] [|id|] false
+  done;
+  rrd
+
+let test_ca_322008 =
+  "Regression test for CA-322008" >:: (fun () ->
+      let rrd = ca_322008_rrd in
+
+      (* Check against the maximum reasonable value of this series,
+       * the time in seconds when it was last updated, setting max
+       * value may cause the bug to not trigger *)
+      let in_range_fring ds fring =
+        in_range ds.ds_min rrd.last_updated (fring_to_list fring) in
+      let in_range_rra dss rra =
+        List.iter2 in_range_fring dss (Array.to_list rra.rra_data) in
+      List.iter (in_range_rra @@ Array.to_list rrd.rrd_dss) @@ Array.to_list rrd.rrd_rras
+  )
 
 let create_dummy_data () =
    let rra = rra_create CF_Average 100 1 0.5 in
@@ -96,6 +140,6 @@ let _ =
   let rrd = create_dummy_data () in
 
   let suite = "rrd" >::: [
-    "read_write" >::: [test_marshal rrd; test_unmarshal rrd]
+    "read_write" >::: [test_marshal rrd; test_unmarshal rrd; test_ca_322008]
     ] in
   run_test_tt ~verbose:!verbose suite
