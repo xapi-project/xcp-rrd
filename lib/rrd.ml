@@ -438,6 +438,23 @@ let ds_update rrd timestamp values transforms new_domid =
       v2s
   )
 
+(* Adapted from Ocaml's Stdlib 4.13 *)
+let array_split x =
+  if x = [||] then [||], [||]
+  else begin
+    let open Array in
+    let a0, b0 = unsafe_get x 0 in
+    let n = length x in
+    let a = make n a0 in
+    let b = make n b0 in
+    for i = 1 to n - 1 do
+      let ai, bi = unsafe_get x i in
+      unsafe_set a i ai;
+      unsafe_set b i bi
+    done;
+    a, b
+  end
+
 (** Update the rrd with named values rather than just an ordered array *)
 let ds_update_named rrd timestamp ~new_domid valuesandtransforms =
   let valuesandtransforms =
@@ -448,7 +465,7 @@ let ds_update_named rrd timestamp ~new_domid valuesandtransforms =
       (StringMap.find_opt ds_name valuesandtransforms)
   in
   let ds_values, ds_transforms =
-    Array.split (Array.map get_value_and_transform rrd.rrd_dss)
+    array_split (Array.map get_value_and_transform rrd.rrd_dss)
   in
   ds_update rrd timestamp ds_values ds_transforms new_domid
 
