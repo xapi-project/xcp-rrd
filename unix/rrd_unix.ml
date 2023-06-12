@@ -90,12 +90,12 @@ let of_file filename =
   Rrd.from_xml input
 
 let with_out_channel_output fd f =
-  let oc = Unix.out_channel_of_descr fd in
+  let oc = Unix.(out_channel_of_descr (dup fd)) in
   finally
     (fun () ->
       let output = Xmlm.make_output (`Channel oc) in
       f output)
-    (fun () -> flush oc)
+    (fun () -> close_out_noerr oc)
 
 let xml_to_fd rrd fd = with_out_channel_output fd (Rrd.xml_to_output rrd)
 
